@@ -1,0 +1,86 @@
+@base = http://localhost:8000
+@aliceToken = PASTE_ALICE_TOKEN
+@bobToken = PASTE_BOB_TOKEN
+
+### Health
+GET {{base}}/health
+
+### 1. Initialize
+POST {{base}}/api/v1/vault/init
+Content-Type: application/json
+
+{"master_passphrase":"Strong-Master-Passphrase-2026!","confirm_master_passphrase":"Strong-Master-Passphrase-2026!"}
+
+### 2. Unlock
+POST {{base}}/api/v1/vault/unlock
+Content-Type: application/json
+
+{"master_passphrase":"Strong-Master-Passphrase-2026!"}
+
+### 3. Register Alice (repeat with bob@example.com)
+POST {{base}}/api/v1/auth/register
+Content-Type: application/json
+
+{"email":"alice@example.com","passphrase":"StrongPassword@123","confirm_passphrase":"StrongPassword@123"}
+
+### 4. Login Alice; copy access_token above
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"email":"alice@example.com","passphrase":"StrongPassword@123"}
+
+### 5. Write secret
+PUT {{base}}/api/v1/kv/secret/alice@example.com/database
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{"data":{"username":"admin","password":"database-password","host":"localhost"}}
+
+### 6. Read secret (use Bob token to demonstrate denial)
+GET {{base}}/api/v1/kv/secret/alice@example.com/database
+Authorization: Bearer {{aliceToken}}
+
+### 7. Create AES key
+POST {{base}}/api/v1/transit/keys
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{"key_name":"payment-key","key_usage":"ENCRYPT_DECRYPT"}
+
+### 8. Encrypt
+POST {{base}}/api/v1/transit/encrypt
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{"key_name":"payment-key","plaintext_b64":"SGVsbG8gTWluaSBWYXVsdA=="}
+
+### 9. Decrypt; paste ciphertext
+POST {{base}}/api/v1/transit/decrypt
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{"ciphertext":"vault:v1:payment-key:PASTE_BASE64_DATA"}
+
+### 10. Create signing key
+POST {{base}}/api/v1/transit/signing-keys
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{"key_name":"document-signing-key","signing_algorithm":"ED25519"}
+
+### 11. Sign
+POST {{base}}/api/v1/transit/sign
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{"key_name":"document-signing-key","message_b64":"SGVsbG8gTWluaSBWYXVsdA==","message_type":"RAW"}
+
+### 12. Verify; paste signature, then alter message
+POST {{base}}/api/v1/transit/verify
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{"key_name":"document-signing-key","message_b64":"SGVsbG8gTWluaSBWYXVsdA==","message_type":"RAW","signature_b64":"PASTE_SIGNATURE"}
+
+### 13. Lock
+POST {{base}}/api/v1/vault/lock
