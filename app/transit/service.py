@@ -22,11 +22,12 @@ class TransitService:
         key = self.db.scalar(select(TransitKey).where(TransitKey.owner_email == email,
                                                      TransitKey.key_name == name))
         if not key:
-            # Same-name key owned by another user is deliberately indistinguishable from denied use.
-            exists = self.db.scalar(select(TransitKey.id).where(TransitKey.key_name == name))
-            raise AppError("PERMISSION_DENIED" if exists else "KEY_NOT_FOUND",
-                           "Permission denied" if exists else "Key not found", 403 if exists else 404)
+            # No key by this name in the caller's namespace: a name owned by another user and a
+            # name that does not exist at all must be indistinguishable, so a probe cannot learn
+            # which key names exist (spec 2.3). PERMISSION_DENIED also triggers the audit hook.
+            raise AppError("PERMISSION_DENIED", "Permission denied", 403)
         if key.revoked_at:
+            # Only reachable for the caller's own revoked key, so this leaks nothing cross-user.
             raise AppError("KEY_NOT_FOUND", "Key not found", 404)
         if usage and key.key_usage != usage:
             raise AppError("INVALID_KEY_USAGE", "Key cannot be used for this operation", 400)
@@ -93,7 +94,7 @@ class TransitService:
         if len(parts) != 4 or parts[:2] != ["vault", "v1"] or not parts[2]:
             raise AppError("INVALID_CIPHERTEXT", "Invalid ciphertext", 400)
         name, blob = parts[2], b64d(parts[3], "INVALID_CIPHERTEXT")
-        if len(blob) < 29: raise AppError("INVALID_CIPHERTEXT", "Invalid ciphertext", 400)
+        if len(blob) < 28: raise AppError("INVALID_CIPHERTEXT", "Invalid ciphertext", 400)  # 12B nonce + 16B GCM tag
         key = self._find(email, name, "ENCRYPT_DECRYPT")
         try:
             raw = decrypt(self._material(key), blob[:12], blob[12:], f"transit:{email}:{name}:v1".encode())

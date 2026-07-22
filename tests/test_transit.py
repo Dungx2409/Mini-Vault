@@ -38,3 +38,24 @@ def test_sign_verify_tamper_wrong_key_and_private_encrypted(initialized):
     with TestingSession() as db:
         key=db.query(TransitKey).filter_by(key_name="sign-key-a").one()
         assert key.encrypted_key_material_b64 and key.encrypted_key_material_b64 != key.public_key_b64
+
+
+def test_key_existence_not_leaked_across_users(initialized):
+    # Bug #1 regression: a name owned by another user and a name that does not exist at all
+    # must produce identical responses, so an attacker cannot probe which key names exist.
+    c=initialized; a=register_login(c); b=register_login(c,"bob@example.com")
+    assert c.post("/api/v1/transit/keys",json={"key_name":"alice-key","key_usage":"ENCRYPT_DECRYPT"},headers=a).status_code==201
+    owned=c.post("/api/v1/transit/encrypt",json={"key_name":"alice-key","plaintext_b64":b64(b"x")},headers=b)
+    missing=c.post("/api/v1/transit/encrypt",json={"key_name":"does-not-exist","plaintext_b64":b64(b"x")},headers=b)
+    assert owned.status_code == missing.status_code == 403
+    assert owned.json()["error"]["code"] == missing.json()["error"]["code"] == "PERMISSION_DENIED"
+
+
+def test_encrypt_decrypt_empty_plaintext_round_trip(initialized):
+    # Bug #2 regression: empty plaintext yields a 28-byte blob (12B nonce + 16B tag) that must
+    # still decrypt back to empty bytes.
+    c=initialized; a=register_login(c)
+    assert c.post("/api/v1/transit/keys",json={"key_name":"empty-key","key_usage":"ENCRYPT_DECRYPT"},headers=a).status_code==201
+    enc=c.post("/api/v1/transit/encrypt",json={"key_name":"empty-key","plaintext_b64":""},headers=a).json()["data"]["ciphertext"]
+    r=c.post("/api/v1/transit/decrypt",json={"ciphertext":enc},headers=a)
+    assert r.status_code == 200 and base64.b64decode(r.json()["data"]["plaintext_b64"]) == b""
