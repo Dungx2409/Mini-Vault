@@ -1,0 +1,14 @@
+{
+  "encrypt_decrypt": {
+    "key_name": "payment-key",
+    "plaintext_b64": "VGjDtG5nIHRpbiB0aOG6uzogNDExMS0xMTExLTExMTEtMTExMQ==",
+    "ciphertext": "vault:v1:payment-key:22BvtomCZ/4zejKYXy9A+5Mk+DFGka5I5+6abBpctWIYWUpC/W2/AqSsdKZJrSgURLfd3hALstgwopYDRWa/YKc="
+  },
+  "sign_verify": {
+    "key_name": "document-signing-key",
+    "message_b64": "TWluaSBWYXVsdCBzYW1wbGUgZG9jdW1lbnQgdjE=",
+    "message_type": "RAW",
+    "signature_b64": "lH+BNpPkXX0R7QwtHvaVnvhaASqz1B65mnhFSefalbXDCzTf4+pJ3L6xaDP9u9gQwbt7l+ZRDPeha8qZLidVAQ==",
+    "signing_algorithm": "ED25519"
+  }
+}

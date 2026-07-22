@@ -141,4 +141,4 @@ async def transit_sign(body: SignRequest, request: Request, p: Principal = Depen
 @router.post("/transit/verify", tags=["Transit Signing"], summary="Verify an Ed25519 signature")
 async def transit_verify(body: VerifyRequest, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
     return transit_call(db, request, p, "VERIFY", body.key_name,
-                        lambda: ok(TransitService(db, vault_state).verify(p.user.email, body.key_name, body.message_b64, body.message_type, body.signature_b64)))
+                        lambda: ok(TransitService(db, vault_state).verify(p.user.email, body.key_name, body.message_b64, body.message_type, body.signature_b64, body.signing_algorithm)))

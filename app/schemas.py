@@ -63,3 +63,4 @@ class SignRequest(BaseModel):
 
 class VerifyRequest(SignRequest):
     signature_b64: str
+    signing_algorithm: str | None = Field(None, max_length=64)

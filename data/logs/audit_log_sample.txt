@@ -1,0 +1,2 @@
+2026-07-22T13:25:53.186936 | bob@example.com | READ KV_SECRET secret/alice@example.com/database | DENIED
+2026-07-22T13:25:53.194576 | bob@example.com | ENCRYPT TRANSIT_KEY payment-key | DENIED

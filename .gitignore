@@ -6,5 +6,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 data/*.db
+!data/samples/*.db
 
 .DS_Store

@@ -1,3 +1,4 @@
+import base64
 from app.models import AuditLog, KVSecret
 from tests.conftest import TestingSession, register_login
 
@@ -14,6 +15,19 @@ def test_kv_crud_tamper_and_access(initialized):
         row=db.query(KVSecret).one(); assert "not-on-disk" not in row.ciphertext_b64
         row.ciphertext_b64=("A" if row.ciphertext_b64[0] != "A" else "B")+row.ciphertext_b64[1:]; db.commit()
         assert db.query(AuditLog).count() == 3
+    assert c.get(f"/api/v1/kv/{path}",headers=alice).json()["error"]["code"] == "DECRYPTION_FAILED"
+
+
+def test_kv_tag_tamper_detected(initialized):
+    # Spec 1.1 acceptance: altering one byte of the *tag* on disk (the last 16 bytes of the
+    # stored blob) must make read refuse, same as tampering with the ciphertext body.
+    c=initialized; alice=register_login(c)
+    path="secret/alice@example.com/api-token"
+    assert c.put(f"/api/v1/kv/{path}",json={"data":{"token":"tag-tamper-check"}},headers=alice).status_code == 200
+    with TestingSession() as db:
+        row=db.query(KVSecret).one()
+        blob=bytearray(base64.b64decode(row.ciphertext_b64)); blob[-1]^=1
+        row.ciphertext_b64=base64.b64encode(bytes(blob)).decode(); db.commit()
     assert c.get(f"/api/v1/kv/{path}",headers=alice).json()["error"]["code"] == "DECRYPTION_FAILED"
 
 

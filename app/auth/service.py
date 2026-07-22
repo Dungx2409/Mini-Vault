@@ -40,6 +40,8 @@ class AuthService:
             locked_until = user.locked_until if user.locked_until.tzinfo else user.locked_until.replace(tzinfo=timezone.utc)
             if locked_until > now:
                 raise AppError("ACCOUNT_LOCKED", "Account is temporarily locked", 423)
+            # Lock expired: the next lockout requires 5 *consecutive* failures again.
+            user.failed_login_attempts, user.locked_until = 0, None
         valid = False
         if user:
             try:

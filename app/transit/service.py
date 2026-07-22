@@ -109,8 +109,12 @@ class TransitService:
         private = Ed25519PrivateKey.from_private_bytes(self._material(key))
         return {"key_name": name, "signature_b64": b64e(private.sign(message)), "signing_algorithm": "ED25519"}
 
-    def verify(self, email: str, name: str, message_b64: str, message_type: str, signature_b64: str) -> dict:
+    def verify(self, email: str, name: str, message_b64: str, message_type: str, signature_b64: str,
+               signing_algorithm: str | None = None) -> dict:
         key = self._find(email, name, "SIGN_VERIFY"); message = b64d(message_b64)
+        if signing_algorithm and signing_algorithm != key.algorithm:
+            raise AppError("INVALID_SIGNING_ALGORITHM",
+                           "Signing algorithm does not match the key", 400)
         if message_type == "DIGEST" and len(message) != 32:
             raise AppError("INVALID_DIGEST_LENGTH", "Digest must be 32 bytes", 400)
         try:

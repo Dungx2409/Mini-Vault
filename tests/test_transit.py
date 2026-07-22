@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 from app.models import AuditLog, TransitKey
 from tests.conftest import TestingSession, register_login
@@ -59,3 +60,37 @@ def test_encrypt_decrypt_empty_plaintext_round_trip(initialized):
     enc=c.post("/api/v1/transit/encrypt",json={"key_name":"empty-key","plaintext_b64":""},headers=a).json()["data"]["ciphertext"]
     r=c.post("/api/v1/transit/decrypt",json={"ciphertext":enc},headers=a)
     assert r.status_code == 200 and base64.b64decode(r.json()["data"]["plaintext_b64"]) == b""
+
+
+def test_encrypt_decrypt_text_and_json_round_trip(initialized):
+    # Spec 2.2 acceptance: round-trip must hold across multiple data types (text, JSON, binary);
+    # binary is covered above, this covers UTF-8 text and a serialized JSON document.
+    c=initialized; a=register_login(c)
+    assert c.post("/api/v1/transit/keys",json={"key_name":"roundtrip-key","key_usage":"ENCRYPT_DECRYPT"},headers=a).status_code==201
+    text="Xin chào Mini Vault — tiếng Việt có dấu".encode()
+    doc=json.dumps({"user":"alice","roles":["admin","dev"],"pin":1234}).encode()
+    for raw in (text, doc):
+        enc=c.post("/api/v1/transit/encrypt",json={"key_name":"roundtrip-key","plaintext_b64":b64(raw)},headers=a).json()["data"]["ciphertext"]
+        out=c.post("/api/v1/transit/decrypt",json={"ciphertext":enc},headers=a).json()["data"]["plaintext_b64"]
+        assert base64.b64decode(out)==raw
+
+
+def test_transit_locked_returns_vault_locked(initialized):
+    c=initialized; a=register_login(c)
+    assert c.post("/api/v1/transit/keys",json={"key_name":"locked-key","key_usage":"ENCRYPT_DECRYPT"},headers=a).status_code==201
+    c.post("/api/v1/vault/lock")
+    r=c.post("/api/v1/transit/encrypt",json={"key_name":"locked-key","plaintext_b64":b64(b"x")},headers=a)
+    assert r.status_code==423 and r.json()["error"]["code"]=="VAULT_LOCKED"
+    assert c.post("/api/v1/transit/signing-keys",json={"key_name":"locked-sign","signing_algorithm":"ED25519"},headers=a).status_code==423
+
+
+def test_verify_rejects_mismatched_signing_algorithm(initialized):
+    # Spec 2.4 error case: verify() with a signing_algorithm other than the key's must be rejected.
+    c=initialized; a=register_login(c)
+    assert c.post("/api/v1/transit/signing-keys",json={"key_name":"algo-key","signing_algorithm":"ED25519"},headers=a).status_code==201
+    msg=b64(b"hello vault")
+    sig=c.post("/api/v1/transit/sign",json={"key_name":"algo-key","message_b64":msg,"message_type":"RAW"},headers=a).json()["data"]["signature_b64"]
+    match=c.post("/api/v1/transit/verify",json={"key_name":"algo-key","message_b64":msg,"message_type":"RAW","signature_b64":sig,"signing_algorithm":"ED25519"},headers=a)
+    assert match.json()["data"]["signature_valid"] is True
+    mismatch=c.post("/api/v1/transit/verify",json={"key_name":"algo-key","message_b64":msg,"message_type":"RAW","signature_b64":sig,"signing_algorithm":"RSASSA_PKCS1_V1_5_SHA_256"},headers=a)
+    assert mismatch.status_code==400 and mismatch.json()["error"]["code"]=="INVALID_SIGNING_ALGORITHM"
