@@ -14,8 +14,8 @@ không bao giờ nhận DEK, named AES key hay Ed25519 private key.
 | _TODO_ | _TODO_ | _TODO (ví dụ: KV + Transit)_ |
 | _TODO_ | _TODO_ | _TODO (ví dụ: Test + báo cáo + demo)_ |
 
-**Video demo (3–5 phút):** _TODO: dán link Drive/YouTube (Unlisted) tại đây_ — kịch bản quay
-theo đúng trình tự mục "Luồng demo" bên dưới.
+**Video demo:** https://youtu.be/s8zrKl8VJn0 — kịch bản quay theo đúng trình tự mục
+"Luồng demo" bên dưới.
 
 ## Kiến trúc
 
