@@ -50,6 +50,17 @@ class KVSecret(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+class KVSecretVersion(Base):
+    __tablename__ = "kv_secret_versions"
+    __table_args__ = (UniqueConstraint("kv_secret_id", "version"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kv_secret_id: Mapped[int] = mapped_column(ForeignKey("kv_secrets.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    nonce_b64: Mapped[str] = mapped_column(Text)
+    ciphertext_b64: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class TransitKey(Base):
     __tablename__ = "transit_keys"
     __table_args__ = (UniqueConstraint("owner_email", "key_name"),)

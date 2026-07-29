@@ -106,6 +106,8 @@ Test dùng SQLite riêng, reset schema giữa từng test, không dùng database
 | Auth | `GET /api/v1/auth/me` | User hiện tại |
 | KV | `GET /api/v1/kv` | Danh sách metadata của owner |
 | KV | `PUT/GET/DELETE /api/v1/kv/{path}` | CRUD JSON secret đã mã hóa |
+| KV | `GET /api/v1/kv/{path}?version=N` | Đọc một version cũ của secret |
+| KV | `GET /api/v1/kv-versions/{path}` | Liệt kê version history của secret |
 | Transit | `POST/GET /api/v1/transit/keys` | Tạo AES key / list metadata |
 | Transit | `GET/DELETE /api/v1/transit/keys/{name}` | Metadata / revoke |
 | Transit | `POST /api/v1/transit/keys/{name}/rotate` | Xoay AES key sang version mới |
@@ -118,6 +120,14 @@ Test dùng SQLite riêng, reset schema giữa từng test, không dùng database
 Mọi API Auth/KV/Transit cần `Authorization: Bearer <token>`, trừ register/login. Auth được kiểm
 tra trước trạng thái vault. Response nghiệp vụ có envelope `success/data/error`; health giữ
 response tối giản theo đặc tả.
+
+### KV versioning
+
+Mỗi lần `PUT /api/v1/kv/{path}` tạo một version mới trong bảng `kv_secret_versions`, vẫn được
+mã hóa bằng DEK với nonce mới và AAD là path. `GET /api/v1/kv/{path}` trả version mới nhất;
+`GET /api/v1/kv/{path}?version=N` trả snapshot cũ; `GET /api/v1/kv-versions/{path}` trả danh
+sách version metadata. Không endpoint nào trả plaintext trong list metadata. `DELETE` vẫn là xóa
+vĩnh viễn secret và history của path đó khỏi API.
 
 ### Ciphertext transit
 

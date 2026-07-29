@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from app.audit.service import audit
 from app.auth.service import AuthService
@@ -76,9 +76,17 @@ async def kv_write(path: str, body: KVWriteRequest, request: Request,
     except AppError as exc: denied_audit(db, request, p, "WRITE", "KV_SECRET", path, exc); raise
 
 
+@router.get("/kv-versions/{path:path}", tags=["KV Engine"], summary="List versions for a secret")
+async def kv_versions(path: str, request: Request, p: Principal = Depends(current_principal),
+                      db: Session = Depends(get_db)):
+    try: return ok(KVService(db, vault_state).versions(path, p.user.email))
+    except AppError as exc: denied_audit(db, request, p, "LIST_VERSIONS", "KV_SECRET", path, exc); raise
+
+
 @router.get("/kv/{path:path}", tags=["KV Engine"], summary="Read and decrypt a secret")
-async def kv_read(path: str, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
-    try: return ok(KVService(db, vault_state).read(path, p.user.email))
+async def kv_read(path: str, request: Request, version: int | None = Query(None, ge=1),
+                  p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    try: return ok(KVService(db, vault_state).read(path, p.user.email, version))
     except AppError as exc: denied_audit(db, request, p, "READ", "KV_SECRET", path, exc); raise
 
 
