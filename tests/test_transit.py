@@ -1,7 +1,7 @@
 import base64
 import json
 import os
-from app.models import AuditLog, TransitKey
+from app.models import AuditLog, TransitKey, TransitKeyVersion
 from tests.conftest import TestingSession, register_login
 
 
@@ -73,6 +73,30 @@ def test_encrypt_decrypt_text_and_json_round_trip(initialized):
         enc=c.post("/api/v1/transit/encrypt",json={"key_name":"roundtrip-key","plaintext_b64":b64(raw)},headers=a).json()["data"]["ciphertext"]
         out=c.post("/api/v1/transit/decrypt",json={"ciphertext":enc},headers=a).json()["data"]["plaintext_b64"]
         assert base64.b64decode(out)==raw
+
+
+def test_key_rotation_uses_new_version_and_decrypts_old_ciphertext(initialized):
+    c=initialized; a=register_login(c); b=register_login(c,"bob@example.com")
+    assert c.post("/api/v1/transit/keys",json={"key_name":"rotating-key","key_usage":"ENCRYPT_DECRYPT"},headers=a).status_code==201
+    old_plain=b"encrypted with version one"
+    old_ciphertext=c.post("/api/v1/transit/encrypt",json={"key_name":"rotating-key","plaintext_b64":b64(old_plain)},headers=a).json()["data"]["ciphertext"]
+    assert old_ciphertext.startswith("vault:v1:rotating-key:")
+
+    denied=c.post("/api/v1/transit/keys/rotating-key/rotate",headers=b)
+    assert denied.status_code==403 and denied.json()["error"]["code"]=="PERMISSION_DENIED"
+    rotated=c.post("/api/v1/transit/keys/rotating-key/rotate",headers=a)
+    assert rotated.status_code==200 and rotated.json()["data"]["current_version"]==2
+
+    new_plain=b"encrypted with version two"
+    new_ciphertext=c.post("/api/v1/transit/encrypt",json={"key_name":"rotating-key","plaintext_b64":b64(new_plain)},headers=a).json()["data"]["ciphertext"]
+    assert new_ciphertext.startswith("vault:v2:rotating-key:")
+    assert base64.b64decode(c.post("/api/v1/transit/decrypt",json={"ciphertext":old_ciphertext},headers=a).json()["data"]["plaintext_b64"])==old_plain
+    assert base64.b64decode(c.post("/api/v1/transit/decrypt",json={"ciphertext":new_ciphertext},headers=a).json()["data"]["plaintext_b64"])==new_plain
+    with TestingSession() as db:
+        key=db.query(TransitKey).filter_by(key_name="rotating-key").one()
+        assert db.query(TransitKeyVersion).filter_by(transit_key_id=key.id).count()==2
+    assert c.delete("/api/v1/transit/keys/rotating-key",headers=a).status_code==200
+    assert c.post("/api/v1/transit/decrypt",json={"ciphertext":old_ciphertext},headers=a).status_code==404
 
 
 def test_transit_locked_returns_vault_locked(initialized):

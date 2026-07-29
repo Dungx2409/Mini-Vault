@@ -108,6 +108,7 @@ Test dùng SQLite riêng, reset schema giữa từng test, không dùng database
 | KV | `PUT/GET/DELETE /api/v1/kv/{path}` | CRUD JSON secret đã mã hóa |
 | Transit | `POST/GET /api/v1/transit/keys` | Tạo AES key / list metadata |
 | Transit | `GET/DELETE /api/v1/transit/keys/{name}` | Metadata / revoke |
+| Transit | `POST /api/v1/transit/keys/{name}/rotate` | Xoay AES key sang version mới |
 | Transit | `POST /api/v1/transit/encrypt` | Encrypt bytes Base64 |
 | Transit | `POST /api/v1/transit/decrypt` | Decrypt self-describing ciphertext |
 | Transit | `POST /api/v1/transit/signing-keys` | Tạo Ed25519 key pair |
@@ -120,10 +121,15 @@ response tối giản theo đặc tả.
 
 ### Ciphertext transit
 
-Định dạng là `vault:v1:<key_name>:<base64(nonce || ciphertext || tag)>`. Nonce dài 12 byte.
-`cryptography.AESGCM.encrypt` trả `ciphertext || tag` (tag 16 byte); AAD gắn version, owner và
-key name nên không thể đổi ngữ cảnh ciphertext. KV dùng path làm AAD. Mỗi lần encrypt đều lấy
-nonce mới từ `os.urandom`.
+Định dạng là `vault:vN:<key_name>:<base64(nonce || ciphertext || tag)>`, trong đó `N` là version
+material của named key. Nonce dài 12 byte. `cryptography.AESGCM.encrypt` trả `ciphertext || tag`
+(tag 16 byte); AAD gắn version, owner và key name nên không thể đổi ngữ cảnh ciphertext. KV dùng
+path làm AAD. Mỗi lần encrypt đều lấy nonce mới từ `os.urandom`.
+
+Key rotation cho AES Transit dùng `POST /api/v1/transit/keys/{name}/rotate`: hệ sinh key material
+mới, tăng version, và từ đó encrypt trả ciphertext với version mới nhất. Các version cũ vẫn được
+lưu ở dạng đã DEK bọc trong bảng `transit_key_versions`, nên ciphertext cũ như `vault:v1:...` vẫn
+decrypt được cho tới khi named key bị revoke. Rotation chỉ áp dụng cho key `ENCRYPT_DECRYPT`.
 
 Key được **soft revoke** qua `revoked_at` để audit metadata nội bộ; mọi crypto operation và API
 metadata bắt buộc từ chối key đã revoke.

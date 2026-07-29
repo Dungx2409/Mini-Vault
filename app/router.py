@@ -113,6 +113,12 @@ async def key_get(name: str, request: Request, p: Principal = Depends(current_pr
     return transit_call(db, request, p, "GET", name, lambda: ok(TransitService(db, vault_state).get(p.user.email, name)))
 
 
+@router.post("/transit/keys/{name}/rotate", tags=["Transit Keys"], summary="Rotate an AES named key")
+async def key_rotate(name: str, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    return transit_call(db, request, p, "ROTATE", name,
+                        lambda: ok(TransitService(db, vault_state).rotate(p.user.email, name)))
+
+
 @router.delete("/transit/keys/{name}", tags=["Transit Keys"], summary="Revoke a key")
 async def key_revoke(name: str, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
     def call(): TransitService(db, vault_state).revoke(p.user.email, name); return ok({"revoked": True})

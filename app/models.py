@@ -66,6 +66,17 @@ class TransitKey(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+class TransitKeyVersion(Base):
+    __tablename__ = "transit_key_versions"
+    __table_args__ = (UniqueConstraint("transit_key_id", "version"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    transit_key_id: Mapped[int] = mapped_column(ForeignKey("transit_keys.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    encrypted_key_material_b64: Mapped[str] = mapped_column(Text)
+    key_nonce_b64: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -1,6 +1,7 @@
 import secrets
 from datetime import timezone
-from fastapi import Depends, Header
+from fastapi import Depends, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 from app.auth.service import token_digest
@@ -15,10 +16,16 @@ class Principal:
         self.user, self.session = user, session
 
 
-async def current_principal(authorization: str | None = Header(None), db: DBSession = Depends(get_db)) -> Principal:
-    if not authorization or not authorization.startswith("Bearer "):
+bearer_scheme = HTTPBearer(auto_error=False)
+
+
+async def current_principal(
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+    db: DBSession = Depends(get_db),
+) -> Principal:
+    if not credentials or credentials.scheme.lower() != "bearer":
         raise AppError("UNAUTHENTICATED", "Authentication required", 401)
-    token = authorization[7:]
+    token = credentials.credentials
     if not token:
         raise AppError("UNAUTHENTICATED", "Authentication required", 401)
     digest = token_digest(token)
@@ -32,4 +39,3 @@ async def current_principal(authorization: str | None = Header(None), db: DBSess
     if not user:
         raise AppError("UNAUTHENTICATED", "Invalid session", 401)
     return Principal(user, session)
-
