@@ -1,0 +1,13 @@
+services:
+  mini-vault:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////app/data/mini_vault.db
+    volumes:
+      - vault-data:/app/data
+    restart: unless-stopped
+volumes:
+  vault-data:
+
