@@ -156,3 +156,22 @@ async def transit_sign(body: SignRequest, request: Request, p: Principal = Depen
 async def transit_verify(body: VerifyRequest, request: Request, p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
     return transit_call(db, request, p, "VERIFY", body.key_name,
                         lambda: ok(TransitService(db, vault_state).verify(p.user.email, body.key_name, body.message_b64, body.message_type, body.signature_b64, body.signing_algorithm)))
+
+
+@router.get("/audit/verify", tags=["Audit"], summary="Verify the integrity of the audit log chain")
+async def audit_verify(p: Principal = Depends(current_principal), db: Session = Depends(get_db)):
+    from app.models import AuditLog
+    import hashlib
+    import base64
+    
+    logs = db.query(AuditLog).order_by(AuditLog.id.asc()).all()
+    prev = "GENESIS"
+    for log in logs:
+        if log.previous_hash_b64 != prev:
+            return ok({"valid": False, "broken_at_id": log.id, "reason": "Previous hash mismatch"})
+        data_str = f"{log.id}|{prev}|{log.requester_email}|{log.action}|{log.resource_identifier}|{log.result}"
+        expected_hash = base64.b64encode(hashlib.sha256(data_str.encode()).digest()).decode()
+        if log.hash_b64 != expected_hash:
+            return ok({"valid": False, "broken_at_id": log.id, "reason": "Hash mismatch"})
+        prev = log.hash_b64
+    return ok({"valid": True})
