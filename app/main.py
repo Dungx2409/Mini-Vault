@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from app.audit.service import ensure_schema as ensure_audit_schema
 from app.config import get_settings
 from app.core.vault_state import vault_state
 from app.database import Base, engine
@@ -11,6 +12,7 @@ from app.router import router
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(engine)
+    ensure_audit_schema(engine)
     vault_state.lock()
     yield
     vault_state.lock()
