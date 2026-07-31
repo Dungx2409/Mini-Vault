@@ -6,15 +6,13 @@ không bao giờ nhận DEK, named AES key hay Ed25519 private key.
 
 ## Nhóm
 
-<!-- TODO: điền thông tin thành viên trước khi nộp (trùng với phân công trong báo cáo) -->
+| Họ tên | MSSV | Vai trò | Mức độ hoàn thành |
+|---|---|---|---|
+| Lương Văn Dũng | 23127353 | Xây dựng Backend, Feature 0, Feature 2.1-2.2, Core Crypto, Tính năng nâng cao: Key Rotation | 100% |
+| Nguyễn Văn Khánh | 23127388 | Thiết kế Database Models, Feature 1, Quay video demo, Chụp ảnh, Tính năng nâng cao: Secret Versioning | 100% |
+| Trần Hữu Nghĩa | 23127437 | Feature 2.3-2.4 (Sign/Verify), Test API, Viết Báo cáo kỹ thuật, Tính năng nâng cao: Tamper-evident Audit Log | 100% |
 
-| Họ tên | MSSV | Vai trò |
-|---|---|---|
-| Lương Văn Dũng | 23127353 | Backend (FastAPI, SQLAlchemy), Feature 0, Feature 2.1-2.2, Key Rotation, Core Crypto |
-| Nguyễn Văn Khánh | 23127388 | Database Models, Feature 1 (KV Engine), Secret Versioning, Quay video demo, Chụp ảnh |
-| Trần Hữu Nghĩa | 23127437 | Feature 2.3-2.4 (Sign/Verify), Test API, Viết báo cáo kỹ thuật |
-
-**Video demo:** https://youtu.be/s8zrKl8VJn0 — kịch bản quay theo đúng trình tự mục
+**Video demo:** https://www.youtube.com/watch?v=Sud6r7sF_Gk — kịch bản quay theo đúng trình tự mục
 "Luồng demo" bên dưới.
 
 ## Kiến trúc
@@ -116,6 +114,7 @@ Test dùng SQLite riêng, reset schema giữa từng test, không dùng database
 | Transit | `POST /api/v1/transit/signing-keys` | Tạo Ed25519 key pair |
 | Transit | `POST /api/v1/transit/sign` | Sign RAW hoặc digest 32-byte |
 | Transit | `POST /api/v1/transit/verify` | Verify; chữ ký sai trả `signature_valid=false` |
+| Audit | `GET /api/v1/audit/verify` | Quét và kiểm chứng toàn vẹn chuỗi Hash-chaining Audit Log |
 
 Mọi API Auth/KV/Transit cần `Authorization: Bearer <token>`, trừ register/login. Auth được kiểm
 tra trước trạng thái vault. Response nghiệp vụ có envelope `success/data/error`; health giữ
@@ -155,6 +154,10 @@ hash SHA-256 trước như mô tả tổng quát của đề — quyết định
 key thì trả `INVALID_SIGNING_ALGORITHM` (mô phỏng `InvalidKeyUsageException`/`KMSInvalidStateException`
 của AWS KMS). Trùng `key_name` khi tạo key trả `KEY_ALREADY_EXISTS` (409) — nhóm chọn từ chối
 thay vì hỏi ghi đè.
+
+### Tamper-evident Audit Log
+
+Mọi thao tác truy cập trái phép (bị từ chối) đều được lưu xuống bảng `audit_logs`. Để chống gian lận, bảng này triển khai cấu trúc dữ liệu chuỗi khối (Hash-chaining): mỗi dòng log được băm SHA-256 kèm theo mã băm của dòng trước đó (`previous_hash_b64`). Bất kỳ thao tác chỉnh sửa trực tiếp nào vào CSDL sẽ làm đứt gãy chuỗi băm, và bị phát hiện ngay lập tức khi gọi API `GET /api/v1/audit/verify`.
 
 ## Luồng demo
 

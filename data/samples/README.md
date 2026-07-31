@@ -6,8 +6,8 @@ passphrase hay message xuất hiện trong file DB trên disk.
 
 | File | Nội dung |
 |---|---|
-| `sample_vault.db` | File dữ liệu KV/Transit **đã mã hóa** (SQLite): vault config (DEK đã bọc), user, 2 KV secret, 2 named key, audit log |
-| `transit_ciphertext.txt` | Một ciphertext self-describing của Transit (`vault:v1:payment-key:...`) |
+| `sample_vault.db` | File dữ liệu KV/Transit **đã mã hóa** (SQLite): vault config (DEK đã bọc), user, 2 KV secret (có lưu Version History), 2 named key (có Key Rotation), chuỗi Audit Log kháng sửa đổi (Hash-chaining). |
+| `transit_ciphertext.txt` | Một ciphertext self-describing của Transit (`vault:v1:payment-key:...` hoặc `v2`) |
 | `transit_samples.json` | Bộ dữ liệu round-trip đầy đủ: plaintext/ciphertext của encrypt-decrypt và message/signature của sign-verify |
 | `../logs/audit_log_sample.txt` | Audit log mẫu, gồm 2 truy cập cross-user bị DENIED (KV read + Transit encrypt) |
 
@@ -28,6 +28,8 @@ DATABASE_URL=sqlite:///./data/samples/sample_vault.db uvicorn app.main:app
 # 2. POST /api/v1/auth/login bằng Alice, đọc GET /api/v1/kv/secret/alice@example.com/database
 # 3. POST /api/v1/transit/decrypt với ciphertext trong transit_ciphertext.txt (token Alice)
 # 4. POST /api/v1/transit/verify với message/signature trong transit_samples.json
+# 5. [Nâng cao] GET /api/v1/audit/verify để kiểm chứng tính toàn vẹn của chuỗi Hash-chaining Audit Log.
+# 6. [Nâng cao] POST /api/v1/transit/keys/payment-key/rotate để kiểm chứng luân chuyển khóa sinh version mới.
 ```
 
 Chạy lại `python scripts/make_samples.py` sẽ tạo mới toàn bộ (ciphertext/chữ ký sẽ khác vì
