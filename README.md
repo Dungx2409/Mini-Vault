@@ -10,9 +10,9 @@ không bao giờ nhận DEK, named AES key hay Ed25519 private key.
 
 | Họ tên | MSSV | Vai trò |
 |---|---|---|
-| _TODO_ | _TODO_ | _TODO (ví dụ: Vault core + Auth)_ |
-| _TODO_ | _TODO_ | _TODO (ví dụ: KV + Transit)_ |
-| _TODO_ | _TODO_ | _TODO (ví dụ: Test + báo cáo + demo)_ |
+| Lương Văn Dũng | 23127353 | Backend (FastAPI, SQLAlchemy), Feature 0, Feature 2.1-2.2, Key Rotation, Core Crypto |
+| Nguyễn Văn Khánh | 23127388 | Database Models, Feature 1 (KV Engine), Secret Versioning, Quay video demo, Chụp ảnh |
+| Trần Hữu Nghĩa | 23127437 | Feature 2.3-2.4 (Sign/Verify), Test API, Viết báo cáo kỹ thuật |
 
 **Video demo:** https://youtu.be/s8zrKl8VJn0 — kịch bản quay theo đúng trình tự mục
 "Luồng demo" bên dưới.
