@@ -4,16 +4,6 @@ Mini Vault là REST API quản lý secret và cung cấp mật mã như một d�
 HashiCorp Vault/AWS KMS. Client có thể lưu JSON đã mã hóa, encrypt/decrypt, sign/verify nhưng
 không bao giờ nhận DEK, named AES key hay Ed25519 private key.
 
-## Nhóm
-
-| Họ tên | MSSV | Vai trò | Mức độ hoàn thành |
-|---|---|---|---|
-| Lương Văn Dũng | 23127353 | Xây dựng Backend, Feature 0, Feature 2.1-2.2, Core Crypto, Tính năng nâng cao: Key Rotation | 100% |
-| Nguyễn Văn Khánh | 23127388 | Thiết kế Database Models, Feature 1, Quay video demo, Chụp ảnh, Tính năng nâng cao: Secret Versioning | 100% |
-| Trần Hữu Nghĩa | 23127437 | Feature 2.3-2.4 (Sign/Verify), Test API, Viết Báo cáo kỹ thuật, Tính năng nâng cao: Tamper-evident Audit Log | 100% |
-
-**Video demo:** https://www.youtube.com/watch?v=Sud6r7sF_Gk — kịch bản quay theo đúng trình tự mục
-"Luồng demo" bên dưới.
 
 ## Kiến trúc
 
@@ -185,26 +175,6 @@ File [docs/api-demo.http](docs/api-demo.http) chứa request có thể chạy tu
   `compare_digest`. Account lock 5 phút sau năm lần sai.
 - Base64 được decode với validation nghiêm ngặt; key name/path được whitelist; `..`, backslash,
   NUL và namespace khác owner bị chặn. Payload được giới hạn xấp xỉ 1 MiB.
-
-## Dữ liệu mẫu nộp kèm
-
-`data/samples/` và `data/logs/` chứa test data files theo yêu cầu mục VI của đề: file KV/Transit
-đã mã hóa (`sample_vault.db`), ciphertext Transit mẫu, bộ round-trip encrypt/sign đầy đủ và audit
-log có 2 truy cập cross-user bị DENIED. Thông tin đăng nhập và cách kiểm chứng ở
-[data/samples/README.md](data/samples/README.md). Sinh lại toàn bộ bằng:
-
-```bash
-python scripts/make_samples.py
-```
-
-## Đóng gói nộp bài
-
-```bash
-scripts/package.sh MSSV1 MSSV2 MSSV3
-```
-
-Script tạo `MSSV1_MSSV2_MSSV3.zip` đúng quy định đặt tên, loại bỏ `.git`, `.venv`, cache và DB
-test; cảnh báo nếu thiếu `docs/report/Report_MSSV1_MSSV2_MSSV3.pdf`.
 
 ## Giới hạn triển khai
 

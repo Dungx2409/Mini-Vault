@@ -7,7 +7,7 @@ from app.core.vault_state import vault_state
 from app.database import Base, engine
 from app.exceptions import install_handlers
 from app.router import router
-
+#Test
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
