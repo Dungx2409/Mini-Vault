@@ -1,86 +1,212 @@
+# Mini Vault - kịch bản demo chính (khoảng 7-10 phút)
+# source venv/bin/activate
+# Dùng database demo mới để có thể chạy lại từ đầu:
+# DATABASE_URL=sqlite:///./data/demo_vault.db 
+# uvicorn app.main:app --reload
+
+
 @base = http://localhost:8000
-@aliceToken = PASTE_ALICE_TOKEN
-@bobToken = PASTE_BOB_TOKEN
+@masterPassphrase = @MasterPassphrase123
+@alicePassphrase = Alice@example123
+@bobPassphrase = Bob@example123
+@aliceToken = xHdG5CeX3otURWZ1tNPU_AtBzBW4lNOnlOKD_0M6704
+@bobToken = Op8sYkZVdhSXOXvSgAy2vYgmTb_yka988QHSQSoVsQA
+@path = secret/alice@example.com/database
+@paymentKey = payment-key
+@signingKey = sign-key
+@ciphertextV1 = vault:v1:payment-key:O0xeljvueaA00MzouxTTzuQcC9qxB/gZnMUG856VSxYJlFGJO9IOMAalHBw=
+@signature = T3ncs0dsG9yWoMAWRCtyB8wrs4/vBUjTlYwOtykwRhMhr2mvFWA/s1AWM3OhQ/o4u+FPEwPsaLowa2LA8fiQDA==
 
-### Health
-GET {{base}}/health
+### 1. Vault: trước init phải locked
+GET {{base}}/api/v1/vault/status
 
-### 1. Initialize
+### 2. Khởi tạo Vault
 POST {{base}}/api/v1/vault/init
 Content-Type: application/json
 
-{"master_passphrase":"Strong-Master-Passphrase-2026!","confirm_master_passphrase":"Strong-Master-Passphrase-2026!"}
+{
+  "master_passphrase": "{{masterPassphrase}}",
+  "confirm_master_passphrase": "{{masterPassphrase}}"
+}
 
-### 2. Unlock
+### 3. Unlock Vault bằng Master Passphrase
 POST {{base}}/api/v1/vault/unlock
 Content-Type: application/json
 
-{"master_passphrase":"Strong-Master-Passphrase-2026!"}
+{
+  "master_passphrase": "{{masterPassphrase}}"
+}
 
-### 3. Register Alice (repeat with bob@example.com)
+### 4. Đăng ký Alice
 POST {{base}}/api/v1/auth/register
 Content-Type: application/json
 
-{"email":"alice@example.com","passphrase":"StrongPassword@123","confirm_passphrase":"StrongPassword@123"}
+{
+  "email": "alice@example.com",
+  "passphrase": "{{alicePassphrase}}",
+  "confirm_passphrase": "{{alicePassphrase}}"
+}
 
-### 4. Login Alice; copy access_token above
+### 5. Đăng ký Bob
+POST {{base}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "bob@example.com",
+  "passphrase": "{{bobPassphrase}}",
+  "confirm_passphrase": "{{bobPassphrase}}"
+}
+
+### 6. Login Alice
 POST {{base}}/api/v1/auth/login
 Content-Type: application/json
 
-{"email":"alice@example.com","passphrase":"StrongPassword@123"}
+{
+  "email": "alice@example.com",
+  "passphrase": "{{alicePassphrase}}"
+}
 
-### 5. Write secret
-PUT {{base}}/api/v1/kv/secret/alice@example.com/database
+### 7. Login Bob
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "bob@example.com",
+  "passphrase": "{{bobPassphrase}}"
+}
+
+### 8. KV: Alice tạo secret version 1
+PUT {{base}}/api/v1/kv/{{path}}
 Authorization: Bearer {{aliceToken}}
 Content-Type: application/json
 
-{"data":{"username":"admin","password":"database-password","host":"localhost"}}
+{
+  "data": {
+    "username": "admin",
+    "password": "database-password-v1",
+    "host": "localhost"
+  }
+}
 
-### 6. Read secret (use Bob token to demonstrate denial)
-GET {{base}}/api/v1/kv/secret/alice@example.com/database
+### 9. KV: Alice tạo secret version 2
+PUT {{base}}/api/v1/kv/{{path}}
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{
+  "data": {
+    "username": "admin",
+    "password": "database-password-v2",
+    "host": "db.example.com"
+  }
+}
+
+### 10. KV: xem lịch sử version
+GET {{base}}/api/v1/kv-versions/{{path}}
 Authorization: Bearer {{aliceToken}}
 
-### 7. Create AES key
+### 11. KV: đọc lại snapshot version 1
+GET {{base}}/api/v1/kv/{{path}}?version=2
+Authorization: Bearer {{aliceToken}}
+
+### 12. Phân quyền + Audit: Bob đọc secret của Alice bị 403
+GET {{base}}/api/v1/kv/{{path}}
+Authorization: Bearer {{bobToken}}
+
+### 13. Transit: Alice tạo AES named key
 POST {{base}}/api/v1/transit/keys
 Authorization: Bearer {{aliceToken}}
 Content-Type: application/json
 
-{"key_name":"payment-key","key_usage":"ENCRYPT_DECRYPT"}
+{
+  "key_name": "{{paymentKey}}",
+  "key_usage": "ENCRYPT_DECRYPT"
+}
 
-### 8. Encrypt
+### 14. Transit: mã hóa.
 POST {{base}}/api/v1/transit/encrypt
 Authorization: Bearer {{aliceToken}}
 Content-Type: application/json
 
-{"key_name":"payment-key","plaintext_b64":"SGVsbG8gTWluaSBWYXVsdA=="}
+{
+  "key_name": "{{paymentKey}}",
+  "plaintext_b64": "SGVsbG8gTWluaSBWYXVsdA=="
+}
 
-### 9. Decrypt; paste ciphertext
+### 15. Transit: giải mã ciphertext version 1
 POST {{base}}/api/v1/transit/decrypt
 Authorization: Bearer {{aliceToken}}
 Content-Type: application/json
 
-{"ciphertext":"vault:v1:payment-key:PASTE_BASE64_DATA"}
+{
+  "ciphertext": "vault:v1:payment-key:lCiS5ud+p2iUviHHiEvT9yrelGpwc8EKSkNmeiTmZbzsjnUtVr/oiKazgM4="
+}
 
-### 10. Create signing key
+### 16. Transit: rotate key, current_version phải thành 2
+POST {{base}}/api/v1/transit/keys/{{paymentKey}}/rotate
+Authorization: Bearer {{aliceToken}}
+
+### 17. Ciphertext v1 vẫn giải mã được sau rotate
+POST {{base}}/api/v1/transit/decrypt
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{
+  "ciphertext": "vault:v1:payment-key:lCiS5ud+p2iUviHHiEvT9yrelGpwc8EKSkNmeiTmZbzsjnUtVr/oiKazgM4="
+}
+
+### 18. Signing: Alice tạo Ed25519 key
 POST {{base}}/api/v1/transit/signing-keys
 Authorization: Bearer {{aliceToken}}
 Content-Type: application/json
 
-{"key_name":"document-signing-key","signing_algorithm":"ED25519"}
+{
+  "key_name": "{{signingKey}}",
+  "signing_algorithm": "ED25519"
+}
 
-### 11. Sign
+### 19. Ký message. Copy data.signature_b64 vào @signature.
 POST {{base}}/api/v1/transit/sign
 Authorization: Bearer {{aliceToken}}
 Content-Type: application/json
 
-{"key_name":"document-signing-key","message_b64":"SGVsbG8gTWluaSBWYXVsdA==","message_type":"RAW"}
+{
+  "key_name": "{{signingKey}}",
+  "message_b64": "SGVsbG8gTWluaSBWYXVsdA==",
+  "message_type": "RAW"
+}
 
-### 12. Verify; paste signature, then alter message
+### 20. Verify message gốc: signature_valid=true
 POST {{base}}/api/v1/transit/verify
 Authorization: Bearer {{aliceToken}}
 Content-Type: application/json
 
-{"key_name":"document-signing-key","message_b64":"SGVsbG8gTWluaSBWYXVsdA==","message_type":"RAW","signature_b64":"PASTE_SIGNATURE"}
+{
+  "key_name": "{{signingKey}}",
+  "message_b64": "SGVsbG8gTWluaSBWYXVsdA==",
+  "message_type": "RAW",
+  "signature_b64": "2/hX4rgCs6fJuAGcLpzt+/NZeAhpFiojo4GNZl3utzor4q1eWZe6/z9ODgQCKwfLR/fAyBETdOa+ZJ8PVL5KCw=="
+}
 
-### 13. Lock
+### 21. Đổi message nhưng giữ chữ ký: signature_valid=false
+POST {{base}}/api/v1/transit/verify
+Authorization: Bearer {{aliceToken}}
+Content-Type: application/json
+
+{
+  "key_name": "{{signingKey}}",
+  "message_b64": "SGVsbG8gTsluaSBWYXVsdD8=",
+  "message_type": "RAW",
+  "signature_b64": "2/hX4rgCs6fJuAGcLpzt+/NZeAhpFiojo4GNZl3utzor4q1eWZe6/z9ODgQCKwfLR/fAyBETdOa+ZJ8PVL5KCw=="
+}
+
+### 22. Lock Vault. DEK bị loại khỏi RAM.
 POST {{base}}/api/v1/vault/lock
+
+### 23. Token Alice hợp lệ nhưng Vault locked: 423 VAULT_LOCKED
+GET {{base}}/api/v1/kv
+Authorization: Bearer {{aliceToken}}
+
+# Xem audit trong terminal
+# sqlite3 -header -column data/demo_vault.db \
+#   "SELECT requester_email, action, resource_type, resource_identifier, result, created_at FROM audit_logs ORDER BY id DESC;"
